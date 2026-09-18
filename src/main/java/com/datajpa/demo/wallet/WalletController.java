@@ -10,7 +10,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/wallet")
 //@CrossOrigin(origins = "http://localhost:4200")
-@CrossOrigin(origins = "https://sample-springboot-app-235639451568.asia-south1.run.app")
+@CrossOrigin(origins = "http://sample-springboot-app-235639451568.asia-south1.run.app")
 public class WalletController {
     @Autowired
     private WalletService walletService;
