@@ -43,7 +43,7 @@ public class Wallet {
 
     @Min(value = 500, message = "The minimum balance should be 500")
     @Column(nullable = false)
-    private Double balance;
+    private Double balance = 500.0;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -78,6 +78,9 @@ public class Wallet {
     public void prePersist() {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
+        }
+        if (this.balance == null) {
+            this.balance = 500.0;
         }
         if (this.transaction == null) {
             this.transaction = new ArrayList<>();
