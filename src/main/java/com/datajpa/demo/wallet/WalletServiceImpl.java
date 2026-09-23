@@ -3,21 +3,17 @@ package com.datajpa.demo.wallet;
 import com.datajpa.demo.Transaction.Transaction;
 import com.datajpa.demo.Transaction.TransactionRespository;
 import com.datajpa.demo.Transaction.TransactionType;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-
-import static com.datajpa.demo.Transaction.Transaction.*;
 
 @Service
 public class WalletServiceImpl implements WalletService {
 
-    private WalletRepository walletRepository;
-    private TransactionRespository transactionRespository;
-    @Autowired
+    private final WalletRepository walletRepository;
+    private final TransactionRespository transactionRespository;
+
     public WalletServiceImpl(WalletRepository walletRepository, TransactionRespository transactionRespository) {
         this.walletRepository = walletRepository;
         this.transactionRespository = transactionRespository;
@@ -25,123 +21,128 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public Wallet registerNewWalletUser(Wallet newWallet) {
-       if (this.walletRepository.findByEmail(newWallet.getEmail()).isPresent()){
+        if (newWallet == null) {
+            throw new WalletException("Wallet details are required");
+        }
+        if (newWallet.getEmail() != null && walletRepository.findByEmail(newWallet.getEmail()).isPresent()) {
             throw new WalletException("Email already exists");
         }
-
         newWallet.setCreatedAt(LocalDateTime.now());
-        return this.walletRepository.save(newWallet);
+        return walletRepository.save(newWallet);
     }
 
     @Override
     public Wallet getUserWalletById(Integer walletID) {
-        Optional<Wallet> foundWallet = Optional.of(this.walletRepository.findById(walletID).orElseThrow(() -> new WalletException("Wallet ID" + walletID + " Not Found")));
-        if (foundWallet.isPresent()) {
-            return foundWallet.get();
-        }
-        return null;
+        return walletRepository.findById(walletID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + walletID + " Not Found"));
     }
 
     @Override
-    public Wallet updateUserWallet(Integer ID) {
-        Wallet wallet = this.walletRepository.findById(ID).orElseThrow(() -> new WalletException("Wallet ID"+ ID+" Not Found"));
-        if (wallet != null) {
-            wallet.setCreatedAt(LocalDateTime.now());
-            wallet.setBalance(10000.0);
-            return this.walletRepository.save(wallet);
-        }
-        return null;
+    public Wallet updateUserWallet(Integer id) {
+        Wallet wallet = walletRepository.findById(id)
+                .orElseThrow(() -> new WalletException("Wallet ID " + id + " Not Found"));
+        wallet.setCreatedAt(LocalDateTime.now());
+        wallet.setBalance(wallet.getBalance() == null ? 10000.0 : wallet.getBalance());
+        return walletRepository.save(wallet);
     }
 
     @Override
-    public Double addFundsToWalletByID(Integer fromID,Integer toID, Double balance) {
-        Wallet foundWallettoID = walletRepository.findById(toID).orElseThrow(() -> new WalletException("Wallet ID " + toID + " Not Found"));
-        Double oldbalnce = foundWallettoID.getBalance();
-        foundWallettoID.setBalance((oldbalnce + balance));
-        return this.walletRepository.save(foundWallettoID).getBalance();
+    public Double addFundsToWalletByID(Integer fromID, Integer toID, Double balance) {
+        Wallet wallet = walletRepository.findById(toID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + toID + " Not Found"));
+        if (balance == null || balance <= 0) {
+            throw new WalletException("Transfer amount must be greater than zero");
+        }
+        wallet.setBalance((wallet.getBalance() == null ? 0.0 : wallet.getBalance()) + balance);
+        return walletRepository.save(wallet).getBalance();
     }
 
     @Override
     public Double withdrawFundsToWalletByID(Integer ID, Double amount) {
-        Wallet foundWallet= this.walletRepository.findById(ID).orElse(null);
-        if (foundWallet.getBalance()<amount) {
-            throw new WalletException("Wallet Balance Not Enough:" + foundWallet.getBalance());
+        Wallet wallet = walletRepository.findById(ID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + ID + " Not Found"));
+        if (amount == null || amount <= 0) {
+            throw new WalletException("Withdrawal amount must be greater than zero");
         }
-        Double currentbalace = foundWallet.getBalance();
-        foundWallet.setBalance(currentbalace - amount);
-        this.walletRepository.save(foundWallet);
-        return foundWallet.getBalance();
+        if (wallet.getBalance() == null || wallet.getBalance() < amount) {
+            throw new WalletException("Wallet Balance Not Enough:" + (wallet.getBalance() == null ? 0.0 : wallet.getBalance()));
+        }
+        wallet.setBalance(wallet.getBalance() - amount);
+        walletRepository.save(wallet);
+        return wallet.getBalance();
     }
 
     @Override
     public Boolean fundTransfer(Integer fromID, Integer toID, Double balance) {
-        Wallet foundWallettoID = this.walletRepository.findById(toID).orElse(null);
-        Wallet foundWalletfromID = this.walletRepository.findById(fromID).orElse(null);
-        if (foundWallettoID != null && foundWalletfromID != null) {
-
-        if (foundWalletfromID.getBalance()<balance) {
-            throw new WalletException("Wallet Balance Not Enough:"+foundWalletfromID.getBalance());
+        if (fromID.equals(toID)) {
+            throw new WalletException("Wallet source and destination cannot be the same");
         }
-        Double oldbalancefromID = foundWalletfromID.getBalance();
-        foundWalletfromID.setBalance((oldbalancefromID - balance));
+        if (balance == null || balance <= 0) {
+            throw new WalletException("Transfer amount must be greater than zero");
+        }
 
-        Transaction newDebitTransaction =  builder().trans_datetime(LocalDateTime.now()).
-                    created_at(LocalDateTime.now()).trans_amount(balance).transactionType(TransactionType.DEBIT).
-                    transaction_status("Success").build();
-        newDebitTransaction= transactionRespository.save(newDebitTransaction);
-        foundWalletfromID.getTransaction().add(newDebitTransaction);
+        Wallet destinationWallet = walletRepository.findById(toID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + toID + " Not Found"));
+        Wallet sourceWallet = walletRepository.findById(fromID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + fromID + " Not Found"));
 
-        Double oldbalnce = foundWallettoID.getBalance();
-        foundWallettoID.setBalance((oldbalnce + balance));
+        if (sourceWallet.getBalance() == null || sourceWallet.getBalance() < balance) {
+            throw new WalletException("Wallet Balance Not Enough:" + (sourceWallet.getBalance() == null ? 0.0 : sourceWallet.getBalance()));
+        }
 
-        Transaction newCreditTransaction = builder().trans_datetime(LocalDateTime.now()).
-                created_at(LocalDateTime.now()).trans_amount(balance).transactionType(TransactionType.CREDIT).
-                transaction_status("Success").build();
-        newCreditTransaction= transactionRespository.save(newCreditTransaction);
-        foundWallettoID.getTransaction().add(newCreditTransaction);
+        sourceWallet.setBalance(sourceWallet.getBalance() - balance);
+        Transaction debitTransaction = Transaction.builder()
+                .trans_datetime(LocalDateTime.now())
+                .created_at(LocalDateTime.now())
+                .trans_amount(balance)
+                .transactionType(TransactionType.DEBIT)
+                .transaction_status("Success")
+                .build();
+        transactionRespository.save(debitTransaction);
+        sourceWallet.getTransaction().add(debitTransaction);
 
-        this.walletRepository.save(foundWalletfromID);
-        this.walletRepository.save(foundWallettoID);
+        destinationWallet.setBalance((destinationWallet.getBalance() == null ? 0.0 : destinationWallet.getBalance()) + balance);
+        Transaction creditTransaction = Transaction.builder()
+                .trans_datetime(LocalDateTime.now())
+                .created_at(LocalDateTime.now())
+                .trans_amount(balance)
+                .transactionType(TransactionType.CREDIT)
+                .transaction_status("Success")
+                .build();
+        transactionRespository.save(creditTransaction);
+        destinationWallet.getTransaction().add(creditTransaction);
+
+        walletRepository.save(sourceWallet);
+        walletRepository.save(destinationWallet);
         return true;
-        }
-        return false;
     }
 
     @Override
     public Boolean deactivateWalletByID(Integer ID) {
-        Optional<Wallet> foundWallet = Optional.of(this.walletRepository.findById(ID).orElseThrow(() -> new WalletException("Wallet ID " + ID + " Not Found")));
-        if  (foundWallet.isPresent()) {
-            if(foundWallet.get().getActive()==true) {
-                foundWallet.get().setActive(false);
-                this.walletRepository.save(foundWallet.get());
-            }
-            else {
-                throw new WalletException("Wallet is already Deactivate");
-            }
+        Wallet wallet = walletRepository.findById(ID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + ID + " Not Found"));
+        if (wallet.getActive() != null && wallet.getActive()) {
+            wallet.setActive(false);
+            walletRepository.save(wallet);
             return true;
         }
-        return null;
+        throw new WalletException("Wallet is already Deactivate");
     }
 
     @Override
     public Boolean activateWalletByID(Integer ID) {
-        Optional<Wallet> foundWallet = Optional.of(this.walletRepository.findById(ID).orElseThrow(() -> new WalletException("Wallet ID " + ID + " Not Found")));
-        if (foundWallet.isPresent()) {
-            if(foundWallet.get().getActive()==false) {
-                foundWallet.get().setActive(true);
-                this.walletRepository.save(foundWallet.get());
-            }
-            else {
-                throw new WalletException("Wallet is already Activate");
-            }
+        Wallet wallet = walletRepository.findById(ID)
+                .orElseThrow(() -> new WalletException("Wallet ID " + ID + " Not Found"));
+        if (wallet.getActive() != null && !wallet.getActive()) {
+            wallet.setActive(true);
+            walletRepository.save(wallet);
             return true;
         }
-        return null;
+        throw new WalletException("Wallet is already Activate");
     }
 
     @Override
     public List<Wallet> getAllWallet() {
-        return this.walletRepository.findAll();
+        return walletRepository.findAll();
     }
-
 }

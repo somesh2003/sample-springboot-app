@@ -2,36 +2,62 @@ package com.datajpa.demo.wallet;
 
 import com.datajpa.demo.Transaction.Transaction;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "wallets")
 public class Wallet {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-    @NotNull
-    @NotBlank
-    @Size(min = 5, max = 25,message = "The size of name should be between 5-25")
+
+    @NotBlank(message = "Wallet name is required")
+    @Size(min = 5, max = 25, message = "The size of name should be between 5-25")
+    @Column(nullable = false)
     private String name;
-    private long phoneNumber;
+
+    @NotNull(message = "Phone number is required")
+    @Column(nullable = false)
+    private Long phoneNumber;
+
+    @Email(message = "Email should be valid")
+    @Column(unique = true, nullable = false)
     private String email;
-    @NotNull(message="Password can't be null")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",message = "Password should be strong")
+
+    @NotBlank(message = "Password can't be blank")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+            message = "Password should be strong"
+    )
+    @Column(nullable = false)
     private String password;
-    @Min(value = 500,message = "The minimum balance should be 500")
+
+    @Min(value = 500, message = "The minimum balance should be 500")
+    @Column(nullable = false)
     private Double balance;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt;
+
     private String city;
-    private Boolean isActive;
+
+    @Column(nullable = false)
+    private boolean isActive = true;
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<Transaction> transaction= new ArrayList<>();
+    private List<Transaction> transaction = new ArrayList<>();
 
-    public Wallet(Integer id, String name, long phoneNumber, String email, String password, Double balance, LocalDateTime createdAt, String city, Boolean isActive, List<Transaction> transaction) {
+    public Wallet(Integer id, String name, Long phoneNumber, String email, String password, Double balance,
+                  LocalDateTime createdAt, String city, Boolean isActive, List<Transaction> transaction) {
         this.id = id;
         this.name = name;
         this.phoneNumber = phoneNumber;
@@ -40,14 +66,22 @@ public class Wallet {
         this.balance = balance;
         this.createdAt = createdAt;
         this.city = city;
-        this.isActive = true;
-        this.transaction = transaction;
+        this.isActive = Boolean.TRUE.equals(isActive);
+        this.transaction = transaction == null ? new ArrayList<>() : transaction;
     }
 
-
     public Wallet() {
-        this.isActive = true;
+        this.createdAt = LocalDateTime.now();
+    }
 
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.transaction == null) {
+            this.transaction = new ArrayList<>();
+        }
     }
 
     public Integer getId() {
@@ -66,7 +100,7 @@ public class Wallet {
         this.name = name;
     }
 
-    public long getPhoneNumber() {
+    public Long getPhoneNumber() {
         return phoneNumber;
     }
 
@@ -114,16 +148,16 @@ public class Wallet {
         this.city = city;
     }
 
-    public void setPhoneNumber(long phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
     public Boolean getActive() {
         return isActive;
     }
 
+    public boolean isActive() {
+        return isActive;
+    }
+
     public void setActive(Boolean active) {
-        isActive = active;
+        this.isActive = Boolean.TRUE.equals(active);
     }
 
     public List<Transaction> getTransaction() {
@@ -131,8 +165,6 @@ public class Wallet {
     }
 
     public void setTransaction(List<Transaction> transaction) {
-        this.transaction = transaction;
+        this.transaction = transaction == null ? new ArrayList<>() : transaction;
     }
-
-
 }

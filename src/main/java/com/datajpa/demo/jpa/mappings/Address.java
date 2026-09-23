@@ -1,6 +1,10 @@
 package com.datajpa.demo.jpa.mappings;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 
 import java.time.LocalDateTime;
 
@@ -16,7 +20,6 @@ public class Address {
     private String zip;
     private LocalDateTime createat;
 
-
     public Address(Integer id, String name, String address, String city, String state, String zip, LocalDateTime createat) {
         this.id = id;
         this.name = name;
@@ -24,11 +27,17 @@ public class Address {
         this.city = city;
         this.state = state;
         this.zip = zip;
-        this.createat = LocalDateTime.now();
+        this.createat = createat == null ? LocalDateTime.now() : createat;
     }
 
     public Address() {
+    }
 
+    @PrePersist
+    public void prePersist() {
+        if (this.createat == null) {
+            this.createat = LocalDateTime.now();
+        }
     }
 
     public LocalDateTime getCreateat() {
@@ -86,5 +95,4 @@ public class Address {
     public void setZip(String zip) {
         this.zip = zip;
     }
-    //TODO [Reverse Engineering] generate columns from DB
 }

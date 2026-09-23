@@ -1,49 +1,52 @@
 package com.datajpa.demo.Transaction;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-
-import java.util.Random;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-
+import java.util.Random;
 
 @Entity
 @Builder
-
+@NoArgsConstructor
+@AllArgsConstructor
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-    private String trans_id =
-            "TXN-" +
-                    System.currentTimeMillis() +
-                    "-" +
-                    new Random().nextInt(1000);
+
+    @Column(nullable = false, unique = true)
+    private String trans_id;
+
+    @Column(nullable = false)
     private Double trans_amount;
+
+    @Column(nullable = false)
     private LocalDateTime trans_datetime;
+
+    @Column(nullable = false)
     private String transaction_status;
+
+    @Column(nullable = false)
     private LocalDateTime created_at;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TransactionType transactionType;
 
-    public Transaction(Integer id, String trans_id, Double trans_amount, LocalDateTime trans_datetime, String transaction_status, LocalDateTime created_at, TransactionType transactionType) {
-        this.id = id;
-        this.trans_id = "TXN-" +
-                System.currentTimeMillis() +
-                "-" +
-                new Random().nextInt(1000);;
-        this.trans_amount = trans_amount;
-        this.trans_datetime = trans_datetime;
-        this.transaction_status = transaction_status;
-        this.created_at = created_at;
-        this.transactionType = transactionType;
-    }
-
-    public Transaction() {
-
+    @PrePersist
+    public void prePersist() {
+        if (trans_id == null || trans_id.isBlank()) {
+            trans_id = "TXN-" + System.currentTimeMillis() + "-" + new Random().nextInt(1000);
+        }
+        if (trans_datetime == null) {
+            trans_datetime = LocalDateTime.now();
+        }
+        if (created_at == null) {
+            created_at = LocalDateTime.now();
+        }
     }
 
     public Integer getId() {
