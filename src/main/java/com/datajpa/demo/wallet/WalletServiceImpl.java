@@ -27,6 +27,10 @@ public class WalletServiceImpl implements WalletService {
         if (newWallet.getEmail() != null && walletRepository.findByEmail(newWallet.getEmail()).isPresent()) {
             throw new WalletException("Email already exists");
         }
+        if (newWallet.getBalance() == null) {
+            newWallet.setBalance(500.0);
+        }
+        newWallet.setActive(true);
         newWallet.setCreatedAt(LocalDateTime.now());
         return walletRepository.save(newWallet);
     }
